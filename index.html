@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agendamento Barbearia</title>
 <style>
     body {
@@ -163,6 +164,50 @@
         cursor: not-allowed !important;
         transform: none !important;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
+    }
+
+    /* Mobile adjustments - keep desktop look but make it fit nicely */
+    @media (max-width: 768px) {
+        body {
+            padding: 10px;
+        }
+        
+        h1 {
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+        
+        .container {
+            padding: 20px;
+            max-width: 95%;
+        }
+        
+        .dia {
+            padding: 15px 10px;
+            font-size: 16px;
+        }
+        
+        .cabecalho-semana {
+            padding: 10px 8px;
+            font-size: 12px;
+        }
+        
+        #calendario {
+            gap: 10px;
+        }
+        
+        .servicos-grid {
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+        
+        .horarios-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        #servicos h2, #horarios h2 {
+            font-size: 1.5em;
+        }
     }
 </style>
 </head>
