@@ -124,6 +124,16 @@
         transform: scale(1.05);
         background: #1976D2;
     }
+
+    .cabecalho-semana {
+        background: #333;
+        color: white;
+        padding: 10px;
+        text-align: center;
+        font-weight: bold;
+        border-radius: 4px;
+        font-size: 14px;
+    }
 </style>
 </head>
 <body>
@@ -174,6 +184,22 @@ function gerarCalendario(ano, mes) {
     const ultimoDia = new Date(ano, mes + 1, 0).getDate();
     const calendario = document.getElementById("calendario");
     calendario.innerHTML = "";
+
+    // Adicionar cabeçalhos dos dias da semana
+    const diasSemana = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+    diasSemana.forEach(inicial => {
+        const cabecalho = document.createElement("div");
+        cabecalho.classList.add("cabecalho-semana");
+        cabecalho.innerText = inicial;
+        calendario.appendChild(cabecalho);
+    });
+
+    // Adicionar espaços vazios para o primeiro dia do mês
+    const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
+    for (let i = 0; i < primeiroDiaSemana; i++) {
+        const espacoVazio = document.createElement("div");
+        calendario.appendChild(espacoVazio);
+    }
 
     for (let dia = 1; dia <= ultimoDia; dia++) {
         const divDia = document.createElement("div");
