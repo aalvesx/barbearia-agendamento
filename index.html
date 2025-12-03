@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Agendamento Barbearia</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f4f4f4;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    h1 {
+        color: #333;
+    }
+
+    #calendario {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 10px;
+        margin: 20px auto;
+        max-width: 600px;
+        width: 90%;
+        justify-self: center;
+    }
+
+    .dia {
+        background: #eaeaea;
+        padding: 18px;
+        text-align: center;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 18px;
+        transition: 0.2s;
+    }
+
+    .dia:hover {
+        transform: scale(1.05);
+    }
+
+    .disponivel {
+        background: #4CAF50;
+        color: white;
+    }
+
+    .indisponivel {
+        background: #a8a8a8;
+        color: #5a5a5a;
+        cursor: not-allowed;
+    }
+
+    #horarios {
+        margin: 40px auto;
+        max-width: 300px;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+    }
+
+    #horarios h2 {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #333;
+    }
+
+    #horarios button {
+        padding: 12px 30px;
+        font-size: 16px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        transition: 0.2s;
+        width: 120px;
+        background: #4CAF50;
+        color: white;
+    }
+
+    #horarios button:hover {
+        transform: scale(1.08);
+    }
+
+    #horarios button:disabled {
+        background: #ccc !important;
+        color: #777 !important;
+        cursor: not-allowed !important;
+        transform: none !important;
+    }
+
+    .finalSemana {
+        background: #d3d3d3 !important;
+        color: #555 !important;
+        cursor: not-allowed !important;
+    }
+
+    #servicos {
+        margin-top: 30px;
+        max-width: 400px;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        align-items: center;
+    }
+
+    #servicos button {
+        padding: 15px 25px;
+        font-size: 16px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: 0.2s;
+        width: 250px;
+        background: #2196F3;
+        color: white;
+    }
+
+    #servicos button:hover {
+        transform: scale(1.05);
+        background: #1976D2;
+    }
+</style>
+</head>
+<body>
+
+<h1>Agendamento da Barbearia</h1>
+
+<div id="calendario"></div>
+<div id="servicos"></div>
+<div id="horarios"></div>
+
+<script type="module">
+
+// ------------------------------------------
+// 1. IMPORTAR FIREBASE
+// ------------------------------------------
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+
+// ------------------------------------------
+// 2. CONFIGURAÇÃO DO FIREBASE
+// ------------------------------------------
+const firebaseConfig = {
+  apiKey: "AIzaSyBBcsGXfJf9sh5-x01Q9sHlVo_ymd_3Puk",
+    authDomain: "barbearia-agendamentos-c2c21.firebaseapp.com",
+    databaseURL: "https://barbearia-agendamentos-c2c21-default-rtdb.firebaseio.com",
+    projectId: "barbearia-agendamentos-c2c21",
+    storageBucket: "barbearia-agendamentos-c2c21.firebasestorage.app",
+    messagingSenderId: "1059359416476",
+    appId: "1:1059359416476:web:a84e0bd6fa9b5094bfcd59"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ------------------------------------------
+// 3. HORÁRIOS DISPONÍVEIS DO DIA
+// ------------------------------------------
+const horariosDia = [
+  "09:00", "10:00", "11:00",
+  "13:00", "14:00", "15:00", "16:00"
+];
+
+// ------------------------------------------
+// 4. GERAR CALENDÁRIO
+// ------------------------------------------
+function gerarCalendario(ano, mes) {
+    const data = new Date(ano, mes, 1);
+    const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+    const calendario = document.getElementById("calendario");
+    calendario.innerHTML = "";
+
+    for (let dia = 1; dia <= ultimoDia; dia++) {
+        const divDia = document.createElement("div");
+        divDia.classList.add("dia");
+        divDia.innerText = dia;
+
+        const dataAtual = new Date(ano, mes, dia);
+        const diaSemana = dataAtual.getDay(); // 0 = domingo, 6 = sábado
+
+        // Se for sábado (6) ou domingo (0), marca como final de semana
+        if (diaSemana === 0 || diaSemana === 6) {
+            divDia.classList.add("finalSemana");
+            // bloqueia clique
+            divDia.onclick = () => alert("A barbearia não atende aos finais de semana.");
+        } else {
+            divDia.onclick = () => selecionarDia(ano, mes, dia);
+        }
+
+        calendario.appendChild(divDia);
+    }
+
+    carregarDisponibilidadeDias(ano, mes);
+}
+
+// ------------------------------------------
+// 5. MARCAR DIAS DISPONÍVEIS / INDISPONÍVEIS
+// ------------------------------------------
+function carregarDisponibilidadeDias(ano, mes) {
+    const refMes = ref(db, `agendamentos/${ano}/${mes + 1}`);
+
+    onValue(refMes, (snapshot) => {
+        const dias = snapshot.val() || {};
+
+        document.querySelectorAll(".dia").forEach(divDia => {
+            const dia = divDia.innerText;
+            const agendaDia = dias[dia] || {};
+
+            const qtdAgendados = Object.keys(agendaDia).length;
+            const qtdTotal = horariosDia.length;
+
+            if (qtdAgendados >= qtdTotal) {
+                divDia.classList.add("indisponivel");
+            } else {
+                divDia.classList.add("disponivel");
+            }
+        });
+    });
+}
+
+// ------------------------------------------
+// 6. SELECIONAR SERVIÇO E HORÁRIOS
+// ------------------------------------------
+function selecionarDia(ano, mes, dia) {
+    const diaFormatado = dia.toString().padStart(2, '0');
+    const mesFormatado = (mes + 1).toString().padStart(2, '0');
+    
+    // Limpar horários e mostrar serviços
+    document.getElementById("horarios").innerHTML = "";
+    
+    const containerServicos = document.getElementById("servicos");
+    containerServicos.innerHTML = `<h2>Escolha o serviço para ${diaFormatado}/${mesFormatado}</h2>`;
+    
+    const servicos = [
+        "Corte de Cabelo",
+        "Barba", 
+        "Corte de Cabelo + Barba"
+    ];
+    
+    servicos.forEach(servico => {
+        const botao = document.createElement("button");
+        botao.innerText = servico;
+        botao.onclick = () => mostrarHorarios(ano, mes, dia, servico);
+        containerServicos.appendChild(botao);
+    });
+}
+
+function mostrarHorarios(ano, mes, dia, servicoSelecionado) {
+    const refDia = ref(db, `agendamentos/${ano}/${mes + 1}/${dia}`);
+
+    onValue(refDia, (snapshot) => {
+        const horariosOcupados = snapshot.val() || {};
+        exibirHorarios(horariosOcupados, ano, mes, dia, servicoSelecionado);
+    });
+}
+
+function exibirHorarios(horariosOcupados, ano, mes, dia, servicoSelecionado) {
+    const diaFormatado = dia.toString().padStart(2, '0');
+    const mesFormatado = (mes + 1).toString().padStart(2, '0');
+    
+    const container = document.getElementById("horarios");
+    container.innerHTML = `<h2>Horários para ${diaFormatado}/${mesFormatado} - ${servicoSelecionado}</h2>`;
+
+    horariosDia.forEach(horario => {
+        const botao = document.createElement("button");
+        botao.innerText = horario;
+
+        if (horariosOcupados[horario]) {
+            botao.disabled = true;
+        }
+
+        botao.onclick = () => agendar(ano, mes, dia, horario, servicoSelecionado);
+
+        container.appendChild(botao);
+    });
+}
+
+// ------------------------------------------
+// 7. AGENDAR HORÁRIO
+// ------------------------------------------
+function agendar(ano, mes, dia, horario, servicoSelecionado) {
+    const nome = prompt("Nome do cliente:");
+    if (!nome) return;
+
+    const telefone = prompt("Número do WhatsApp (com código do país, ex: 5511999999999):");
+    if (!telefone) return;
+
+    const diaFormatado = dia.toString().padStart(2, '0');
+    const mesFormatado = (mes + 1).toString().padStart(2, '0');
+    
+    const caminho = `agendamentos/${ano}/${mes+1}/${dia}/${horario}`;
+    set(ref(db, caminho), {
+        nome,
+        servico: servicoSelecionado,
+        telefone,
+        data: `${diaFormatado}/${mesFormatado}/${ano}`,
+        horario
+    });
+
+    // Enviar mensagem via WhatsApp
+    const mensagem = `Olá! Seu agendamento foi confirmado:\n\n` +
+                    `📅 Data: ${diaFormatado}/${mesFormatado}/${ano}\n` +
+                    `🕐 Horário: ${horario}\n` +
+                    `✂️ Serviço: ${servicoSelecionado}\n` +
+                    `👤 Cliente: ${nome}\n\n` +
+                    `Obrigado por escolher nossa barbearia!`;
+    
+    const whatsappUrl = `https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`;
+    
+    alert("Agendamento realizado com sucesso! Você será redirecionado para o WhatsApp.");
+    window.open(whatsappUrl, '_blank');
+}
+
+// ------------------------------------------
+// 8. INICIAR CALENDÁRIO
+// ------------------------------------------
+const hoje = new Date();
+gerarCalendario(hoje.getFullYear(), hoje.getMonth());
+
+</script>
+
+</body>
+</html>
